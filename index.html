@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BV Pan Store | Digital Assets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; overflow-x: hidden; }
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom scrollbar for cart */
+        #cartItems::-webkit-scrollbar { width: 4px; }
+        #cartItems::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <nav class="bg-white border-b sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-2 cursor-pointer" onclick="location.reload()">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg"><i class="fa-solid fa-bolt-lightning"></i></div>
+            <span class="text-xl font-black uppercase tracking-tighter">BV PAN <span class="text-indigo-600">STORE</span></span>
+        </div>
+        <div id="navGroup" class="hidden flex items-center gap-4 md:gap-8">
+            <button onclick="showView('store')" class="font-bold text-slate-600 hover:text-indigo-600 transition">Browse</button>
+            <button onclick="showView('library')" class="font-bold text-slate-600 hover:text-indigo-600 transition">My Files</button>
+            <button onclick="toggleCart()" class="relative p-2 text-slate-600 hover:text-indigo-600 transition">
+                <i class="fa-solid fa-cart-shopping text-xl"></i>
+                <span id="cartCount" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+            </button>
+            <button onclick="logout()" class="text-rose-500 font-bold text-xs uppercase border border-rose-100 px-3 py-1 rounded-lg hover:bg-rose-50 transition">Logout</button>
+        </div>
+    </nav>
+
+    <div id="cartSidebar" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="toggleCart()"></div>
+        <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl p-8 flex flex-col">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-black">Shopping Cart</h2>
+                <button onclick="toggleCart()"><i class="fa-solid fa-xmark text-2xl text-slate-400 hover:text-black"></i></button>
+            </div>
+            <div id="cartItems" class="flex-1 overflow-y-auto space-y-4 pr-2">
+                </div>
+            <div class="border-t pt-6 mt-6">
+                <div class="flex justify-between text-2xl font-black mb-6">
+                    <span>Total</span>
+                    <span id="cartTotal" class="text-indigo-600">₹0</span>
+                </div>
+                <button onclick="checkoutCart()" id="checkoutBtn" class="w-full bg-indigo-600 text-white py-5 rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all active:scale-95 disabled:bg-slate-300">
+                    Checkout Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto p-6">
+        
+        <section id="authView" class="max-w-md mx-auto mt-16 bg-white p-10 rounded-[2.5rem] shadow-xl border hidden fade-in text-center">
+            <h2 id="authTitle" class="text-3xl font-black mb-2 text-slate-800">Welcome</h2>
+            <p class="text-slate-500 mb-8 text-sm">Sign in to manage your digital assets</p>
+            
+            <div class="space-y-4">
+                <input type="email" id="email" placeholder="Email Address" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                <input type="password" id="pass" placeholder="Password (6+ chars)" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all">
+                
+                <button onclick="handleAuth()" id="authBtn" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all active:scale-95">Continue</button>
+                
+                <div class="flex justify-between items-center px-2 mt-4">
+                    <button onclick="toggleAuth()" id="authSwitch" class="text-sm font-bold text-indigo-600 hover:underline">Create account</button>
+                    <button onclick="forgotPassword()" class="text-sm font-bold text-rose-500 hover:text-rose-600 hover:underline">Forgot Password?</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="storeView" class="hidden fade-in">
+            <div class="mb-10">
+                <h1 class="text-4xl font-black text-slate-900">Digital Gallery</h1>
+                <p class="text-slate-500">Instant delivery to "My Files" after payment</p>
+            </div>
+            <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+        </section>
+
+        <section id="libraryView" class="hidden fade-in">
+            <h1 class="text-4xl font-black mb-10">My Vault</h1>
+            <div id="libraryList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </section>
+
+    </main>
+
+    <div id="loadingOverlay" class="fixed inset-0 bg-white z-[110] flex flex-col items-center justify-center">
+        <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="font-bold text-indigo-600 text-xs tracking-widest animate-pulse uppercase">Connecting...</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getAuth, onAuthStateChanged, signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, signOut, sendPasswordResetEmail 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
+            getFirestore, collection, addDoc, getDocs, query, 
+            where, orderBy, writeBatch, doc 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase Config
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBwcy4jVPp8tP3hrNy7YO8B4zZD5I1gkWw", 
+            authDomain: "bvpstore.firebaseapp.com", 
+            projectId: "bvpstore", 
+            storageBucket: "bvpstore.firebasestorage.app", 
+            messagingSenderId: "364926889008", 
+            appId: "1:364926889008:web:a25d7b24e14c73ee9411f5" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let cart = [];
+        let isLogin = true;
+
+        // Auth Observer
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            document.getElementById('loadingOverlay').classList.add('hidden');
+            if (user) {
+                document.getElementById('authView').classList.add('hidden');
+                document.getElementById('navGroup').classList.remove('hidden');
+                showView('store');
+            } else {
+                document.getElementById('authView').classList.remove('hidden');
+                document.getElementById('navGroup').classList.add('hidden');
+            }
+        });
+
+        // View Switcher
+        window.showView = (view) => {
+            document.getElementById('storeView').classList.toggle('hidden', view !== 'store');
+            document.getElementById('libraryView').classList.toggle('hidden', view !== 'library');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+            if (view === 'store') loadStore();
+            if (view === 'library') loadLibrary();
+        };
+
+        // Load Products
+        async function loadStore() {
+            const grid = document.getElementById('productsGrid');
+            const snap = await getDocs(query(collection(db, 'products'), orderBy('created', 'desc')));
+            grid.innerHTML = '';
+            snap.forEach(docSnap => {
+                const p = docSnap.data();
+                const card = document.createElement('div');
+                card.className = 'bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 group';
+                card.innerHTML = `
+                    <div class="overflow-hidden rounded-3xl mb-4 bg-slate-50 h-48">
+                        <img src="${p.image}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                    </div>
+                    <h3 class="font-bold text-xl mb-1 truncate">${p.title}</h3>
+                    <p class="text-indigo-600 font-black text-2xl mb-6">₹${p.price}</p>
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="addToCart('${docSnap.id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${p.url}')" 
+                                class="w-full bg-slate-100 text-slate-800 py-4 rounded-2xl font-bold hover:bg-indigo-100 transition-colors">
+                            <i class="fa-solid fa-plus mr-2"></i>Add to Cart
+                        </button>
+                        <button onclick="directBuy('${docSnap.id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${p.url}')" 
+                                class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95">
+                            Buy Now
+                        </button>
+                    </div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        // Cart Management
+        window.addToCart = (id, title, price, url) => {
+            if(cart.find(i => i.id === id)) return alert("This item is already in your cart!");
+            cart.push({id, title, price, url});
+            updateCartUI();
+            alert(`"${title}" added to cart successfully!`);
+        };
+
+        function updateCartUI() {
+            const list = document.getElementById('cartItems');
+            const totalEl = document.getElementById('cartTotal');
+            document.getElementById('cartCount').textContent = cart.length;
+            list.innerHTML = cart.length === 0 ? '<div class="text-center py-20 text-slate-400">Your cart is empty</div>' : '';
+            
+            let total = 0;
+            cart.forEach((item, idx) => {
+                total += Number(item.price);
+                list.innerHTML += `
+                <div class="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 fade-in">
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-800">${item.title}</h4>
+                        <p class="text-indigo-600 font-bold text-xs">₹${item.price}</p>
+                    </div>
+                    <button onclick="removeFromCart(${idx})" class="text-rose-400 hover:text-rose-600 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                </div>`;
+            });
+            totalEl.textContent = `₹${total}`;
+            document.getElementById('checkoutBtn').disabled = cart.length === 0;
+        }
+
+        window.removeFromCart = (idx) => { cart.splice(idx, 1); updateCartUI(); };
+        window.toggleCart = () => document.getElementById('cartSidebar').classList.toggle('hidden');
+
+        // Payment Handling
+        window.directBuy = (id, title, price, url) => {
+            cart = [{id, title, price, url}];
+            checkoutCart();
+        };
+
+        window.checkoutCart = () => {
+            const total = cart.reduce((s, i) => s + Number(i.price), 0);
+            if(total === 0) return;
+            const options = {
+                key: "rzp_test_RqVhC5fZMCKMlp", // Razorpay Test Key
+                amount: total * 100,
+                currency: "INR",
+                name: "BV Pan Store",
+                description: `Purchase of ${cart.length} item(s)`,
+                handler: async (res) => {
+                    document.getElementById('loadingOverlay').classList.remove('hidden');
+                    try {
+                        const batch = writeBatch(db);
+                        cart.forEach(item => {
+                            const ref = doc(collection(db, 'purchases'));
+                            batch.set(ref, {
+                                uid: currentUser.uid,
+                                title: item.title,
+                                url: item.url,
+                                price: item.price,
+                                payId: res.razorpay_payment_id,
+                                timestamp: Date.now()
+                            });
+                        });
+                        await batch.commit();
+                        cart = [];
+                        updateCartUI();
+                        if(!document.getElementById('cartSidebar').classList.contains('hidden')) toggleCart();
+                        showView('library');
+                    } catch (err) {
+                        alert("Transaction error: " + err.message);
+                    } finally {
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                    }
+                },
+                prefill: { email: currentUser.email },
+                theme: { color: "#4F46E5" }
+            };
+            new Razorpay(options).open();
+        };
+
+        // Load Purchased Files
+        async function loadLibrary() {
+            const list = document.getElementById('libraryList');
+            list.innerHTML = '<div class="col-span-full py-10 text-center text-indigo-600 animate-pulse font-bold">Opening your vault...</div>';
+            try {
+                const q = query(collection(db, 'purchases'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'desc'));
+                const snap = await getDocs(q);
+                list.innerHTML = snap.empty ? '<div class="col-span-full py-20 text-center text-slate-400 font-medium">No files found yet.</div>' : '';
+                snap.forEach(d => {
+                    const p = d.data();
+                    list.innerHTML += `
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm fade-in">
+                        <div class="pr-4">
+                            <h4 class="font-bold text-slate-800 leading-tight mb-1">${p.title}</h4>
+                            <p class="text-[10px] text-slate-400 font-mono uppercase">TRANSACTION: ${p.payId}</p>
+                        </div>
+                        <a href="${p.url}" target="_blank" class="shrink-0 bg-emerald-500 text-white px-6 py-3 rounded-2xl text-xs font-bold hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-100">
+                            <i class="fa-solid fa-download mr-1"></i> Get File
+                        </a>
+                    </div>`;
+                });
+            } catch (e) {
+                const errorMsg = e.message.includes('index') 
+                    ? `<b>Database Index Building:</b> Please click the Firebase link in your console and wait 5 minutes.`
+                    : `<b>Error:</b> ${e.message}`;
+                list.innerHTML = `<div class="col-span-full p-8 bg-rose-50 text-rose-600 rounded-[2rem] border border-rose-100 text-sm">${errorMsg}</div>`;
+            }
+        }
+
+        // Authentication Logic
+        window.handleAuth = async () => {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('pass').value;
+            if(!email || (isLogin && !pass)) return alert("Please fill in all details.");
+            try { 
+                isLogin ? await signInWithEmailAndPassword(auth, email, pass) : await createUserWithEmailAndPassword(auth, email, pass); 
+            } catch (e) { alert(e.message); }
+        };
+
+        window.forgotPassword = async () => {
+            const email = document.getElementById('email').value.trim();
+            if (!email) return alert("Please enter your email address in the input field first.");
+            try {
+                await sendPasswordResetEmail(auth, email);
+                alert("A password reset link has been sent to your email! Please check your inbox.");
+            } catch (e) { alert(e.message); }
+        };
+
+        window.toggleAuth = () => {
+            isLogin = !isLogin;
+            document.getElementById('authTitle').textContent = isLogin ? "Welcome" : "Create Account";
+            document.getElementById('authSwitch').textContent = isLogin ? "Create account" : "Back to Sign In";
+            document.getElementById('authBtn').textContent = isLogin ? "Sign In" : "Sign Up";
+        };
+
+        window.logout = () => signOut(auth).then(() => location.reload());
+    </script>
+</body>
+</html>
